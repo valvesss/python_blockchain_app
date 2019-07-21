@@ -5,7 +5,6 @@ import time
 from flask import Flask, request
 import requests
 
-
 class Block:
     def __init__(self, index, transactions, timestamp, previous_hash, nonce=0):
         self.index = index
@@ -150,7 +149,8 @@ peers = set()
 @app.route('/new_transaction', methods=['POST'])
 def new_transaction():
     tx_data = request.get_json()
-    required_fields = ["author", "content"]
+    required_fields = [
+        "invoice_number", "hospital_name", "timestamp", "invoice_data"]
 
     for field in required_fields:
         if not tx_data.get(field):
@@ -314,3 +314,7 @@ def announce_new_block(block):
     for peer in peers:
         url = "{}add_block".format(peer)
         requests.post(url, data=json.dumps(block.__dict__, sort_keys=True))
+
+
+if __name__ == '__main__':
+    app.run(debug=True, port=8000)
