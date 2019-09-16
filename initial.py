@@ -1,10 +1,11 @@
 import json
-import time
+import logging
 import datetime
-import requests
 
 from pprint import pprint
 from hashlib import sha256
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s :: %(levelname)s :: %(message)s')
 
 class Block:
     def __init__(self, index, transactions, timestamp, previous_hash, nonce=0):
@@ -15,9 +16,6 @@ class Block:
         self.nonce = nonce
 
     def compute_hash(self):
-        """
-        A function that return the hash of the block contents.
-        """
         block_string = json.dumps(self.__dict__, sort_keys=True)
         return sha256(block_string.encode()).hexdigest()
 
@@ -32,6 +30,7 @@ class Blockchain:
         genesis_block = Block(0, [], str(datetime.datetime.now()), "0")
         genesis_block.hash = genesis_block.compute_hash()
         self.chain.append(genesis_block)
+        logging.info('Genesis block created')
 
     @property
     def last_block(self):
@@ -47,6 +46,7 @@ class Blockchain:
             return False
 
         block.hash = proof
+        logging.info('Block #{} was inserted in the chain'.format(block.index))
         self.chain.append(block)
         return True
 
@@ -57,7 +57,6 @@ class Blockchain:
         while not computed_hash.startswith('0' * Blockchain.pow_difficulty):
             block.nonce += 1
             computed_hash = block.compute_hash()
-
         return computed_hash
 
     def add_new_transaction(self, transaction):
@@ -65,16 +64,30 @@ class Blockchain:
 
     @classmethod
     def is_valid_proof(cls, block, block_hash):
-        """
-        Check if block_hash is valid hash of block and satisfies
-        the difficulty criteria.
-        """
         return (block_hash.startswith('0' * Blockchain.pow_difficulty) and
                 block_hash == block.compute_hash())
 
+    # @classmethod
+    # def check_chain_validity(cls, chain):
+    #     result = True
+    #     previous_hash = "0"
+    #
+    #     for block in chain:
+    #         block_hash = block.hash
+    #         delattr(block, "hash")
+    #
+    #         if not cls.is_valid_proof(block, block.hash) or \
+    #                 previous_hash != block.previous_hash:
+    #             result = False
+    #             break
+    #
+    #         block.hash, previous_hash = block_hash, block_hash
+    #
+    #     return result
+
     def mine(self):
         if not self.unconfirmed_transactions:
-            print("There are no blocks to mine!")
+            logging.fatal('There are no transactions to mine!')
             return False
 
         last_block = self.last_block
@@ -86,14 +99,9 @@ class Blockchain:
 
         proof = self.proof_of_work(new_block)
         self.add_block(new_block, proof)
-
         self.unconfirmed_transactions = []
-        print("A new block was added to the chain!")
-        print(self.last_block.__dict__)
+        logging.info('Unconfirmed transactions list set empty')
         return new_block.index
-
-blockchain = Blockchain()
-blockchain.create_genesis_block()
 
 def new_transaction():
     tx_data = {'author': 'author_test', 'content': 'content_test'}
@@ -101,13 +109,16 @@ def new_transaction():
 
     for field in required_fields:
         if not tx_data.get(field):
-            return "Invalid transaction data"
+            logging.error('The transaction data is invalid')
+            return False
 
     tx_data["timestamp"] = str(datetime.datetime.now())
 
     blockchain.add_new_transaction(tx_data)
-    print("New transaction added!")
+    logging.info('A new transaction was made')
 
+blockchain = Blockchain()
+blockchain.create_genesis_block()
 new_transaction()
 blockchain.mine()
 [pprint(block.__dict__) for block in blockchain.chain]
